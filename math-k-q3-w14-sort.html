@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Measure with Cubes</title>
+<style>
+  :root{
+    --cream:#FFF8EC; --ink:#2B2A28; --card:#FFFFFF;
+    --orange:#F2711C; --blue:#2B7BC4; --purple:#7A4BC9; --green:#3C9A3C; --bad:#E05252;
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;min-height:100%;font-family:'Trebuchet MS','Segoe UI',sans-serif;background:var(--cream);color:var(--ink);overflow-x:hidden;}
+  .wrap{max-width:900px;margin:0 auto;padding:18px 16px 32px;}
+  header{text-align:center;margin-bottom:8px;}
+  h1{font-size:clamp(1.6rem,5vw,2.4rem);margin:4px 0 2px;color:var(--orange);}
+  p.sub{margin:0;font-size:1.05rem;color:#5a5854;}
+  .scoreboard{display:flex;justify-content:center;gap:14px;margin:10px 0 14px;font-weight:bold;flex-wrap:wrap;}
+  .scoreboard span{background:var(--card);border-radius:999px;padding:6px 16px;box-shadow:0 2px 6px rgba(0,0,0,.08);}
+  .prompt{background:var(--card);border-radius:22px;padding:14px 16px;text-align:center;font-size:clamp(1.15rem,4.2vw,1.7rem);font-weight:bold;
+    box-shadow:0 4px 0 rgba(0,0,0,.08);margin:6px auto 16px;max-width:720px;}
+  .prompt .hl{color:var(--purple);}
+  .board{background:linear-gradient(180deg,#FFF1D6,#FFE7BB);border-radius:24px;padding:18px 12px 20px;overflow-x:auto;}
+  .obj-label{font-weight:bold;margin:0 0 6px;font-size:1.05rem;}
+  .obj{height:30px;border-radius:8px;border:3px solid rgba(0,0,0,.25);}
+  .track{display:flex;align-items:center;margin-top:12px;min-height:var(--cw);}
+  .cube{width:var(--cw);height:var(--cw);flex:0 0 auto;background:var(--blue);border:2px solid rgba(0,0,0,.3);border-radius:4px;
+    color:#fff;font-weight:bold;display:flex;align-items:center;justify-content:center;font-size:clamp(.8rem,3vw,1.1rem);animation:pop .25s;}
+  .track.gaps .cube{margin-right:14px;}
+  @keyframes pop{0%{transform:scale(.4)}70%{transform:scale(1.15)}100%{transform:scale(1)}}
+  @keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-6px)}75%{transform:translateX(6px)}}
+  .counter{text-align:center;font-size:1.4rem;font-weight:bold;margin:14px 0 4px;min-height:1.6em;}
+  .row{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-top:8px;}
+  .choices{display:flex;flex-wrap:wrap;gap:12px;justify-content:center;margin-top:14px;min-height:64px;}
+  .choice,.act{border:none;border-radius:18px;color:#fff;font-weight:bold;font-family:inherit;cursor:pointer;box-shadow:0 5px 0 rgba(0,0,0,.15);}
+  .choice{min-width:84px;padding:12px 18px;font-size:1.6rem;background:linear-gradient(160deg,#9B6BE8,var(--purple));}
+  .choice.yn{min-width:140px;font-size:1.3rem;}
+  .act{padding:12px 20px;font-size:1.15rem;background:linear-gradient(160deg,#4FA3E8,var(--blue));}
+  .act.minus{background:linear-gradient(160deg,#F59A5B,var(--orange));}
+  .choice:active,.act:active{transform:translateY(3px);box-shadow:0 2px 0 rgba(0,0,0,.15);}
+  .choice.wrong{animation:shake .4s;background:var(--bad);}
+  .choice.correct{background:var(--green);}
+  .hint{text-align:center;min-height:1.6em;margin:14px 0 0;font-size:1.1rem;font-weight:bold;color:#5a5854;}
+  .summary{display:none;text-align:center;background:var(--card);border-radius:24px;padding:26px 16px;max-width:520px;margin:20px auto;box-shadow:0 4px 0 rgba(0,0,0,.08);}
+  .summary h2{margin:6px 0;font-size:1.8rem;color:var(--orange);}
+  .summary .big{font-size:3rem;}
+  .controls{text-align:center;margin-top:20px;display:flex;gap:10px;justify-content:center;flex-wrap:wrap;}
+  button.btn{background:var(--ink);color:#fff;border:none;border-radius:999px;padding:10px 22px;font-size:1rem;cursor:pointer;font-family:inherit;}
+  button.btn.alt{background:var(--purple);}
+  button[hidden],.row[hidden],.choices[hidden]{display:none;}
+  @media (prefers-color-scheme:dark){
+    :root:not([data-theme="light"]){--cream:#1F1B16;--ink:#F4F0E8;--card:#2B2620;}
+    .board{background:linear-gradient(180deg,#3a3122,#30281b);}
+    p.sub,.hint{color:#bdb6a8;}
+    h1,.summary h2{color:#F5A15E;}
+    .prompt .hl{color:#B79CF5;}
+    button.btn{background:#4a4234;}
+  }
+  :root[data-theme="dark"]{--cream:#1F1B16;--ink:#F4F0E8;--card:#2B2620;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>🧊 Measure with Cubes</h1>
+    <p class="sub">Cubes are our units. Line them up end to end, with no gaps!</p>
+  </header>
+  <div class="scoreboard">
+    <span id="roundEl">Question 1 of 10</span>
+    <span id="scoreEl">⭐ Score: 0</span>
+  </div>
+
+  <div id="game">
+    <div class="prompt" id="prompt"></div>
+    <div class="board" id="board">
+      <div class="obj-label" id="objLabel"></div>
+      <div class="obj" id="obj"></div>
+      <div class="track" id="track"></div>
+    </div>
+    <div class="counter" id="counter">&nbsp;</div>
+    <div class="row" id="actions">
+      <button class="act" id="addBtn">➕ Add a cube</button>
+      <button class="act minus" id="removeBtn">➖ Take one away</button>
+    </div>
+    <div class="choices" id="choices" hidden></div>
+    <div class="hint" id="hint">&nbsp;</div>
+  </div>
+
+  <div class="summary" id="summary">
+    <div class="big">🎉</div>
+    <h2>Great measuring!</h2>
+    <p id="summaryText"></p>
+  </div>
+
+  <div class="controls">
+    <button class="btn alt" id="soundBtn">🔊 Sound: On</button>
+    <button class="btn" id="resetBtn">🔄 Play Again</button>
+  </div>
+</div>
+
+<script>
+const TOTAL=10;
+const OBJECTS=[
+  {n:'pencil',e:'✏️',c:'#E8B923'},{n:'crayon',e:'🖍️',c:'#E0523C'},{n:'ribbon',e:'🎀',c:'#D9488E'},
+  {n:'paper strip',e:'📄',c:'#7DB5F2'},{n:'stick',e:'🪵',c:'#9B6B3A'},{n:'straw',e:'🥤',c:'#3C9A3C'},
+  {n:'marker',e:'🖊️',c:'#7A4BC9'},{n:'spoon',e:'🥄',c:'#9aa3b2'}
+];
+let round=0, score=0, soundOn=true, missed=false, locked=false, count=0, cur=null, cw=44;
+const $=id=>document.getElementById(id);
+function speak(t){
+  if(!soundOn) return;
+  try{ if('speechSynthesis' in window){ speechSynthesis.cancel(); const u=new SpeechSynthesisUtterance(t); u.rate=0.85; speechSynthesis.speak(u);} }catch(e){}
+}
+function shuffle(a){a=[...a];for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;}
+function rand(lo,hi){return lo+Math.floor(Math.random()*(hi-lo+1));}
+function setCW(){ const w=Math.min(window.innerWidth,900)-56; cw=Math.max(26,Math.min(48,Math.floor(w/11))); document.documentElement.style.setProperty('--cw',cw+'px'); }
+
+let bQueue=[];
+function startRound(){
+  setCW(); locked=false; missed=false; count=0;
+  $('hint').innerHTML='&nbsp;'; $('counter').innerHTML='&nbsp;';
+  $('roundEl').textContent=`Question ${round+1} of ${TOTAL}`;
+  const ob=OBJECTS[(round*3+rand(0,2))%OBJECTS.length];
+  const mode = round<6 ? 'A' : 'B';
+  let n = mode==='A' ? rand(3,9) : rand(3,6);
+  cur={mode,n,ob,defect:null};
+  const obj=$('obj'); obj.style.width=(n*cw)+'px'; obj.style.background=ob.c;
+  $('objLabel').textContent=`${ob.e} ${ob.n}`;
+  const track=$('track'); track.innerHTML=''; track.className='track'; track.style.marginLeft='0';
+  $('choices').hidden=true; $('choices').innerHTML='';
+  if(mode==='A'){
+    $('prompt').innerHTML=`How many cubes long is the <span class="hl">${ob.n}</span>? Add cubes to measure it.`;
+    $('actions').hidden=false;
+    speak(`How many cubes long is the ${ob.n}? Add cubes to measure it.`);
+  } else {
+    if(!bQueue.length) bQueue=shuffle(['good','gap','late','good']);
+    cur.defect=bQueue.pop();
+    $('prompt').innerHTML=`Did this student measure the <span class="hl">${ob.n}</span> the right way?`;
+    $('actions').hidden=true;
+    if(cur.defect==='gap') track.classList.add('gaps');
+    if(cur.defect==='late') track.style.marginLeft=cw+'px';
+    for(let i=0;i<n;i++) track.appendChild(makeCube(i+1));
+    const ch=$('choices'); ch.hidden=false;
+    [['Yes ✅',true],['No ❌',false]].forEach(([t,v])=>{
+      const b=document.createElement('button'); b.className='choice yn'; b.textContent=t;
+      b.addEventListener('click',()=>answerYN(v,b)); ch.appendChild(b);
+    });
+    speak(`Did this student measure the ${ob.n} the right way?`);
+  }
+}
+function makeCube(num){ const c=document.createElement('div'); c.className='cube'; c.textContent=num; return c; }
+
+function updateCounter(){
+  $('counter').textContent = count===0 ? ' ' : `${count} cube${count===1?'':'s'}`;
+}
+$('addBtn').addEventListener('click',()=>{
+  if(locked||cur.mode!=='A') return;
+  if(count>=10){ $('hint').textContent='That is plenty of cubes!'; return; }
+  count++; $('track').appendChild(makeCube(count)); updateCounter(); speak(String(count));
+  if(count===cur.n){ $('hint').textContent='The cubes fit the whole object. How many cubes long is it?'; showChoices(); }
+  else if(count>cur.n){ $('hint').textContent='Too many cubes. Take one away.'; hideChoices(); }
+  else $('hint').innerHTML='&nbsp;';
+});
+$('removeBtn').addEventListener('click',()=>{
+  if(locked||cur.mode!=='A'||count===0) return;
+  count--; $('track').lastElementChild.remove(); updateCounter();
+  if(count===cur.n){ $('hint').textContent='The cubes fit the whole object. How many cubes long is it?'; showChoices(); }
+  else { hideChoices(); $('hint').innerHTML='&nbsp;'; }
+});
+function hideChoices(){ $('choices').hidden=true; $('choices').innerHTML=''; }
+function showChoices(){
+  const ch=$('choices'); ch.innerHTML=''; ch.hidden=false;
+  const set=new Set([cur.n]);
+  shuffle([-2,-1,1,2]).forEach(d=>{ const v=cur.n+d; if(set.size<4 && v>=1 && v<=10) set.add(v); });
+  shuffle([...set]).forEach(v=>{
+    const b=document.createElement('button'); b.className='choice'; b.textContent=v;
+    b.addEventListener('click',()=>answerNum(v,b)); ch.appendChild(b);
+  });
+}
+function win(msg){
+  locked=true;
+  if(!missed) score++;
+  $('scoreEl').textContent=`⭐ Score: ${score}`;
+  $('hint').textContent=msg; speak(msg);
+  setTimeout(()=>{ round++; round>=TOTAL?finish():startRound(); },2200);
+}
+function lose(el,msg){
+  missed=true; el.classList.add('wrong'); setTimeout(()=>el.classList.remove('wrong'),400);
+  $('hint').textContent=msg;
+}
+function answerNum(v,el){
+  if(locked) return;
+  if(v===cur.n){ el.classList.add('correct'); win(`Yes! The ${cur.ob.n} is ${cur.n} cubes long.`); }
+  else lose(el,'Not quite. Count the cubes again, starting at the end.');
+}
+function answerYN(yes,el){
+  if(locked) return;
+  const good = cur.defect==='good';
+  if(yes===good){
+    el.classList.add('correct');
+    const why = good ? 'Yes! The cubes start at the end, touch each other, and have no gaps.'
+      : cur.defect==='gap' ? 'No! There are gaps between the cubes. They must touch.'
+      : 'No! The cubes do not start at the end of the object.';
+    win(why);
+  } else {
+    lose(el, 'Not quite. Check the start, and look for gaps between cubes.');
+  }
+}
+function finish(){
+  $('game').style.display='none'; $('summary').style.display='block';
+  $('summaryText').textContent=`You got ${score} out of ${TOTAL} on the first try!`;
+  speak(`Great measuring! You got ${score} out of ${TOTAL} on the first try!`);
+}
+$('soundBtn').addEventListener('click',e=>{ soundOn=!soundOn; e.currentTarget.textContent=soundOn?'🔊 Sound: On':'🔇 Sound: Off'; });
+$('resetBtn').addEventListener('click',()=>{
+  round=0; score=0; bQueue=[]; $('scoreEl').textContent='⭐ Score: 0';
+  $('summary').style.display='none'; $('game').style.display='block'; startRound();
+});
+startRound();
+</script>
+</body>
+</html>

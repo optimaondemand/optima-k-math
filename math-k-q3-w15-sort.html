@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Lighter or Heavier Game</title>
+<style>
+  :root{
+    --cream:#F4FAF2; --ink:#23283A; --card:#FFFFFF;
+    --blue:#2B7BC4; --purple:#7A4BC9; --green:#3C9A3C; --bad:#E05252; --wood:#9B6B3A;
+    --tilt:0deg;
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;min-height:100%;font-family:'Trebuchet MS','Segoe UI',sans-serif;background:var(--cream);color:var(--ink);overflow-x:hidden;}
+  .wrap{max-width:900px;margin:0 auto;padding:18px 16px 32px;}
+  header{text-align:center;margin-bottom:8px;}
+  h1{font-size:clamp(1.6rem,5vw,2.4rem);margin:4px 0 2px;color:#2F7D4F;}
+  p.sub{margin:0;font-size:1.05rem;color:#4d5368;}
+  .scoreboard{display:flex;justify-content:center;gap:14px;margin:10px 0 14px;font-weight:bold;flex-wrap:wrap;}
+  .scoreboard span{background:var(--card);border-radius:999px;padding:6px 16px;box-shadow:0 2px 6px rgba(0,0,0,.08);}
+  .prompt{background:var(--card);border-radius:22px;padding:14px 16px;text-align:center;font-size:clamp(1.3rem,4.5vw,1.9rem);font-weight:bold;
+    box-shadow:0 4px 0 rgba(0,0,0,.08);margin:6px auto 12px;max-width:720px;}
+  .prompt .word{color:var(--purple);}
+  .scale-wrap{max-width:640px;margin:0 auto;padding:0 6px;}
+  .scale{position:relative;height:clamp(250px,70vw,320px);}
+  .beam{position:absolute;left:12%;right:12%;top:36px;height:12px;background:var(--wood);border-radius:6px;
+    transform:rotate(var(--tilt));transform-origin:center;transition:transform 1s cubic-bezier(.3,1.4,.5,1);}
+  .stand{position:absolute;left:50%;top:42px;width:0;height:0;margin-left:-26px;border-left:26px solid transparent;border-right:26px solid transparent;border-bottom:0;}
+  .post{position:absolute;left:50%;top:42px;width:14px;height:100%;margin-left:-7px;background:var(--wood);border-radius:0 0 8px 8px;}
+  .base{position:absolute;left:50%;bottom:0;width:150px;height:14px;margin-left:-75px;background:var(--wood);border-radius:8px;}
+  .pivot{position:absolute;left:50%;top:30px;width:24px;height:24px;margin-left:-12px;border-radius:50%;background:#6e4a24;z-index:3;}
+  .pan{position:absolute;top:6px;width:clamp(96px,30vw,150px);transform:translateX(-50%) rotate(calc(-1 * var(--tilt)));transform-origin:top center;
+    transition:transform 1s cubic-bezier(.3,1.4,.5,1);border:none;background:none;font-family:inherit;color:inherit;cursor:pointer;padding:0;
+    -webkit-tap-highlight-color:transparent;display:flex;flex-direction:column;align-items:center;}
+  .pan.left{left:0;}
+  .pan.right{left:100%;}
+  .strings{width:70%;height:clamp(40px,12vw,62px);border-left:3px solid #6e4a24;border-right:3px solid #6e4a24;
+    clip-path:polygon(0 0,100% 0,50% 100%);border:none;background:linear-gradient(#6e4a24,#6e4a24) center/3px 100% no-repeat;}
+  .plate{width:100%;background:#fff;border:4px solid var(--wood);border-radius:0 0 60px 60px/0 0 40px 40px;padding:6px 4px 14px;text-align:center;box-shadow:0 4px 0 rgba(0,0,0,.15);}
+  .plate .emoji{font-size:clamp(2.2rem,9vw,3.2rem);display:block;line-height:1.1;}
+  .plate .name{font-weight:bold;font-size:clamp(.85rem,3vw,1.05rem);}
+  .pan:not(.locked):hover .plate{border-color:#6e4a24;}
+  .pan.correct .plate{border-color:var(--green);background:#E5F7E5;}
+  .pan.wrong .plate{border-color:var(--bad);background:#FDECEC;}
+  .hint{text-align:center;min-height:2.8em;margin:10px 0 0;font-size:1.15rem;font-weight:bold;color:#4d5368;}
+  .summary{display:none;text-align:center;background:var(--card);border-radius:24px;padding:26px 16px;max-width:520px;margin:20px auto;box-shadow:0 4px 0 rgba(0,0,0,.08);}
+  .summary h2{margin:6px 0;font-size:1.8rem;color:#2F7D4F;}
+  .summary .big{font-size:3rem;}
+  .controls{text-align:center;margin-top:20px;display:flex;gap:10px;justify-content:center;flex-wrap:wrap;}
+  button.btn{background:var(--ink);color:#fff;border:none;border-radius:999px;padding:10px 22px;font-size:1rem;cursor:pointer;font-family:inherit;}
+  button.btn.alt{background:var(--purple);}
+  @media (prefers-color-scheme:dark){
+    :root:not([data-theme="light"]){--cream:#171B22;--ink:#F1F3FA;--card:#232A33;}
+    p.sub,.hint{color:#b8c0d0;}
+    h1,.summary h2{color:#7FD0A0;}
+    .prompt .word{color:#B79CF5;}
+    .plate{background:#2d3640;}
+    .pan.correct .plate{background:#1F3B26;}
+    .pan.wrong .plate{background:#442426;}
+    button.btn{background:#3a4552;}
+  }
+  :root[data-theme="dark"]{--cream:#171B22;--ink:#F1F3FA;--card:#232A33;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>⚖️ Lighter or Heavier?</h1>
+    <p class="sub">Think about which one weighs more. Then tap it to check with the scale!</p>
+  </header>
+  <div class="scoreboard">
+    <span id="roundEl">Question 1 of 10</span>
+    <span id="scoreEl">⭐ Score: 0</span>
+  </div>
+
+  <div id="game">
+    <div class="prompt" id="prompt"></div>
+    <div class="scale-wrap">
+      <div class="scale" id="scale">
+        <div class="post"></div><div class="base"></div>
+        <div class="beam" id="beam">
+          <button class="pan left" id="panL"></button>
+          <button class="pan right" id="panR"></button>
+        </div>
+        <div class="pivot"></div>
+      </div>
+    </div>
+    <div class="hint" id="hint">&nbsp;</div>
+  </div>
+
+  <div class="summary" id="summary">
+    <div class="big">🎉</div>
+    <h2>Great thinking!</h2>
+    <p id="summaryText"></p>
+  </div>
+
+  <div class="controls">
+    <button class="btn alt" id="soundBtn">🔊 Sound: On</button>
+    <button class="btn" id="resetBtn">🔄 Play Again</button>
+  </div>
+</div>
+
+<script>
+// w = rough weight rank (bigger = heavier)
+const THINGS=[
+  {n:'feather',e:'🪶',w:1},{n:'cotton ball',e:'☁️',w:1.2},{n:'balloon',e:'🎈',w:2},{n:'beach ball',e:'🏖️',w:3},
+  {n:'pillow',e:'🛏️',w:5},{n:'egg',e:'🥚',w:6},{n:'banana',e:'🍌',w:8},{n:'apple',e:'🍎',w:9},
+  {n:'book',e:'📖',w:12},{n:'rock',e:'🪨',w:20},{n:'brick',e:'🧱',w:30},{n:'bowling ball',e:'🎳',w:40},
+  {n:'bike',e:'🚲',w:300},{n:'car',e:'🚗',w:1000},{n:'elephant',e:'🐘',w:5000},{n:'mouse',e:'🐭',w:4}
+];
+// extra "surprise" pairs: big but light vs small but heavy
+const SURPRISE=[['pillow','rock'],['beach ball','apple'],['balloon','book'],['pillow','brick'],['beach ball','egg']];
+const TOTAL=10;
+let round=0, score=0, soundOn=true, locked=false, cur=null, order=[];
+const $=id=>document.getElementById(id);
+function speak(t){
+  if(!soundOn) return;
+  try{ if('speechSynthesis' in window){ speechSynthesis.cancel(); const u=new SpeechSynthesisUtterance(t); u.rate=0.85; speechSynthesis.speak(u);} }catch(e){}
+}
+function shuffle(a){a=[...a];for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;}
+const byName=n=>THINGS.find(t=>t.n===n);
+
+function pickPair(i){
+  if(i%3===2){ const p=shuffle(SURPRISE)[0]; return shuffle(p.map(byName)); }
+  let a,b;
+  do{ [a,b]=shuffle(THINGS).slice(0,2); }while(Math.max(a.w,b.w)/Math.min(a.w,b.w)<2.5);
+  return [a,b];
+}
+function fillPan(el,t){
+  el.innerHTML=`<div class="strings"></div><div class="plate"><span class="emoji">${t.e}</span><span class="name">${t.n}</span></div>`;
+  el.className=el.className.replace(/\b(correct|wrong|locked)\b/g,'').trim();
+}
+
+function startRound(){
+  locked=false;
+  $('hint').innerHTML='&nbsp;';
+  $('roundEl').textContent=`Question ${round+1} of ${TOTAL}`;
+  document.documentElement.style.setProperty('--tilt','0deg');
+  const [a,b]=pickPair(round);
+  const askHeavy = round%2===0;
+  cur={a,b,askHeavy};
+  fillPan($('panL'),a); fillPan($('panR'),b);
+  const word = askHeavy?'heavier':'lighter';
+  $('prompt').innerHTML=`Which one is <span class="word">${word}</span>?`;
+  speak(`Which one is ${word}? ${a.n} or ${b.n}?`);
+}
+
+function choose(side){
+  if(locked) return;
+  locked=true;
+  const {a,b,askHeavy}=cur;
+  const picked = side==='L'?a:b;
+  const heavier = a.w>b.w ? a : b;
+  const lighter = a.w>b.w ? b : a;
+  const target = askHeavy ? heavier : lighter;
+  const ok = picked===target;
+  // tip the scale to the truth: heavier side goes down
+  const leftHeavy = a.w>b.w;
+  document.documentElement.style.setProperty('--tilt', leftHeavy ? '-13deg' : '13deg');
+  $('panL').classList.add('locked'); $('panR').classList.add('locked');
+  const pickedEl = side==='L'?$('panL'):$('panR');
+  pickedEl.classList.add(ok?'correct':'wrong');
+  let msg;
+  if(ok){ score++; $('scoreEl').textContent=`⭐ Score: ${score}`; msg=`Yes! The ${heavier.n} is heavier, so its side goes down. The ${lighter.n} is lighter.`; }
+  else { msg=`Look at the scale. The ${heavier.n} is heavier, so its side goes down. The ${lighter.n} is lighter.`; }
+  setTimeout(()=>{ $('hint').textContent=msg; speak(msg); },700);
+  setTimeout(()=>{ round++; round>=TOTAL?finish():startRound(); },4800);
+}
+$('panL').addEventListener('click',()=>choose('L'));
+$('panR').addEventListener('click',()=>choose('R'));
+
+function finish(){
+  document.documentElement.style.setProperty('--tilt','0deg');
+  $('game').style.display='none'; $('summary').style.display='block';
+  $('summaryText').textContent=`You got ${score} out of ${TOTAL} right!`;
+  speak(`Great thinking! You got ${score} out of ${TOTAL} right!`);
+}
+$('soundBtn').addEventListener('click',e=>{ soundOn=!soundOn; e.currentTarget.textContent=soundOn?'🔊 Sound: On':'🔇 Sound: Off'; });
+$('resetBtn').addEventListener('click',()=>{
+  round=0; score=0; $('scoreEl').textContent='⭐ Score: 0';
+  $('summary').style.display='none'; $('game').style.display='block'; startRound();
+});
+startRound();
+</script>
+</body>
+</html>

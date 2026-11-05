@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Tallest and Shortest Game</title>
+<style>
+  :root{
+    --cream:#F2F8FF; --ink:#23283A; --card:#FFFFFF;
+    --blue:#2B7BC4; --purple:#7A4BC9; --green:#3C9A3C; --bad:#E05252; --gold:#F2B52C;
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;min-height:100%;font-family:'Trebuchet MS','Segoe UI',sans-serif;background:var(--cream);color:var(--ink);overflow-x:hidden;}
+  .wrap{max-width:900px;margin:0 auto;padding:18px 16px 32px;}
+  header{text-align:center;margin-bottom:8px;}
+  h1{font-size:clamp(1.6rem,5vw,2.4rem);margin:4px 0 2px;color:var(--blue);}
+  p.sub{margin:0;font-size:1.05rem;color:#4d5368;}
+  .scoreboard{display:flex;justify-content:center;gap:14px;margin:10px 0 14px;font-weight:bold;flex-wrap:wrap;}
+  .scoreboard span{background:var(--card);border-radius:999px;padding:6px 16px;box-shadow:0 2px 6px rgba(0,0,0,.08);}
+  .prompt{background:var(--card);border-radius:22px;padding:16px;text-align:center;font-size:clamp(1.3rem,4.5vw,1.9rem);font-weight:bold;
+    box-shadow:0 4px 0 rgba(0,0,0,.08);margin:6px auto 18px;max-width:720px;}
+  .prompt .word{color:var(--purple);}
+  .stage{background:linear-gradient(180deg,#DDEEFF,#EAF5FF);border-radius:24px;padding:20px 12px 0;}
+  .towers{display:flex;align-items:flex-end;justify-content:center;gap:clamp(14px,5vw,40px);min-height:260px;}
+  .tower{display:flex;flex-direction:column-reverse;cursor:pointer;padding:6px;border-radius:12px;border:4px solid transparent;
+    background:none;font-family:inherit;transition:transform .15s;-webkit-tap-highlight-color:transparent;}
+  .tower:hover{transform:translateY(-3px);}
+  .tower.correct{border-color:var(--green);background:rgba(60,154,60,.15);}
+  .tower.wrong{animation:shake .4s;border-color:var(--bad);}
+  .cube{width:clamp(44px,15vw,70px);height:26px;border:2px solid rgba(0,0,0,.25);border-radius:4px;}
+  .ground{height:14px;background:#7b6a4d;border-radius:0 0 24px 24px;margin:0 -12px;}
+  @keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-6px)}75%{transform:translateX(6px)}}
+  .hint{text-align:center;min-height:1.6em;margin:16px 0 0;font-size:1.15rem;font-weight:bold;color:#4d5368;}
+  .summary{display:none;text-align:center;background:var(--card);border-radius:24px;padding:26px 16px;max-width:520px;margin:20px auto;box-shadow:0 4px 0 rgba(0,0,0,.08);}
+  .summary h2{margin:6px 0;font-size:1.8rem;color:var(--blue);}
+  .summary .big{font-size:3rem;}
+  .controls{text-align:center;margin-top:20px;display:flex;gap:10px;justify-content:center;flex-wrap:wrap;}
+  button.btn{background:var(--ink);color:#fff;border:none;border-radius:999px;padding:10px 22px;font-size:1rem;cursor:pointer;font-family:inherit;}
+  button.btn.alt{background:var(--purple);}
+  @media (prefers-color-scheme:dark){
+    :root:not([data-theme="light"]){--cream:#171B28;--ink:#F1F3FA;--card:#232A3D;}
+    .stage{background:linear-gradient(180deg,#26385A,#1E2D4A);}
+    p.sub,.hint{color:#b8c0d8;}
+    h1,.summary h2{color:#8DBDF5;}
+    .prompt .word{color:#B79CF5;}
+    button.btn{background:#3a4560;}
+  }
+  :root[data-theme="dark"]{--cream:#171B28;--ink:#F1F3FA;--card:#232A3D;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>📏 Tallest and Shortest</h1>
+    <p class="sub">Look at the tops of the towers. Tap the right one!</p>
+  </header>
+  <div class="scoreboard">
+    <span id="roundEl">Question 1 of 10</span>
+    <span id="scoreEl">⭐ Score: 0</span>
+  </div>
+
+  <div id="game">
+    <div class="prompt" id="prompt"></div>
+    <div class="stage">
+      <div class="towers" id="towers"></div>
+      <div class="ground"></div>
+    </div>
+    <div class="hint" id="hint">&nbsp;</div>
+  </div>
+
+  <div class="summary" id="summary">
+    <div class="big">🎉</div>
+    <h2>Great measuring!</h2>
+    <p id="summaryText"></p>
+  </div>
+
+  <div class="controls">
+    <button class="btn alt" id="soundBtn">🔊 Sound: On</button>
+    <button class="btn" id="resetBtn">🔄 Play Again</button>
+  </div>
+</div>
+
+<script>
+const TOTAL=10;
+const COLORS=['#E8620C','#2B7BC4','#3C9A3C','#D9488E','#7A4BC9','#E0A21C'];
+let round=0, score=0, soundOn=true, missed=false, locked=false;
+const $=id=>document.getElementById(id);
+function speak(t){
+  if(!soundOn) return;
+  try{ if('speechSynthesis' in window){ speechSynthesis.cancel(); const u=new SpeechSynthesisUtterance(t); u.rate=0.85; speechSynthesis.speak(u);} }catch(e){}
+}
+function shuffle(a){a=[...a];for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;}
+
+function startRound(){
+  locked=false; missed=false;
+  $('hint').innerHTML='&nbsp;';
+  $('roundEl').textContent=`Question ${round+1} of ${TOTAL}`;
+  const count = round<4 ? 3 : 4;
+  const gap = round<4 ? 2 : 1;          // early rounds: bigger difference
+  // pick distinct heights from 1..9 with min gap
+  let hs;
+  do{ hs=shuffle([1,2,3,4,5,6,7,8,9]).slice(0,count); const s=[...hs].sort((a,b)=>a-b);
+      var ok=s.every((v,i)=>i===0||v-s[i-1]>=gap); }while(!ok);
+  const asksTall = round%2===0;
+  const target = asksTall ? Math.max(...hs) : Math.min(...hs);
+  const word = asksTall ? 'tallest' : 'shortest';
+  $('prompt').innerHTML=`Tap the <span class="word">${word}</span> tower.`;
+  const box=$('towers'); box.innerHTML='';
+  const cols=shuffle(COLORS);
+  hs.forEach((h,i)=>{
+    const t=document.createElement('button'); t.className='tower'; t.setAttribute('aria-label','tower');
+    for(let k=0;k<h;k++){ const c=document.createElement('div'); c.className='cube'; c.style.background=cols[i]; t.appendChild(c); }
+    t.addEventListener('click',()=>choose(h,target,asksTall,t));
+    box.appendChild(t);
+  });
+  speak(`Tap the ${word} tower.`);
+}
+
+function choose(h,target,asksTall,el){
+  if(locked) return;
+  if(h===target){
+    locked=true; el.classList.add('correct');
+    if(!missed) score++;
+    $('scoreEl').textContent=`⭐ Score: ${score}`;
+    const msg = asksTall ? 'Yes! That tower is the tallest. It reaches the highest.' : 'Yes! That tower is the shortest. It reaches the lowest.';
+    $('hint').textContent=msg; speak(msg);
+    setTimeout(()=>{ round++; round>=TOTAL?finish():startRound(); },1800);
+  } else {
+    missed=true; el.classList.add('wrong'); setTimeout(()=>el.classList.remove('wrong'),400);
+    $('hint').textContent = asksTall ? 'Not quite. Look at the tops. Which one reaches the highest?' : 'Not quite. Look at the tops. Which one reaches the lowest?';
+  }
+}
+function finish(){
+  $('game').style.display='none'; $('summary').style.display='block';
+  $('summaryText').textContent=`You got ${score} out of ${TOTAL} on the first try!`;
+  speak(`Great measuring! You got ${score} out of ${TOTAL} on the first try!`);
+}
+$('soundBtn').addEventListener('click',e=>{ soundOn=!soundOn; e.currentTarget.textContent=soundOn?'🔊 Sound: On':'🔇 Sound: Off'; });
+$('resetBtn').addEventListener('click',()=>{
+  round=0; score=0; $('scoreEl').textContent='⭐ Score: 0';
+  $('summary').style.display='none'; $('game').style.display='block'; startRound();
+});
+startRound();
+</script>
+</body>
+</html>
