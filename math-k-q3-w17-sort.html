@@ -1,0 +1,464 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>Weather Compare Sort</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@500;700;800&display=swap">
+<style>
+/* Layout: a goal group on top, a tray of counting cards, and three bins (more than, less than, equal to). Almost no reading needed. */
+:root {
+  --bg: #E8F2FA;
+  --surface: #FFFFFF;
+  --fg: #16304A;
+  --muted: #4D6781;
+  --line: #C2D6E6;
+  --accent: #1F6FB5;
+  --accent-ink: #FFFFFF;
+  --accent-soft: #CFE3F5;
+  --good: #1F7A4D;
+  --more-b: #D2601A; --more-t: #FDE5D3;
+  --less-b: #2D69B3; --less-t: #DCE9F8;
+  --eq-b: #7A4BB5;   --eq-t: #EDE2F8;
+  --display: "Fredoka", "Trebuchet MS", system-ui, sans-serif;
+  --body: "Nunito", system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0E1B29; --surface: #162A3F; --fg: #E6F0FA; --muted: #A3B9CF; --line: #2B4660;
+    --accent: #6BB2F0; --accent-ink: #0B1B2B; --accent-soft: #19395A; --good: #5FD39A;
+    --more-b: #F29150; --more-t: #43240F;
+    --less-b: #6BA6F0; --less-t: #14294A;
+    --eq-b: #B994EE;   --eq-t: #2E2049;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0E1B29; --surface: #162A3F; --fg: #E6F0FA; --muted: #A3B9CF; --line: #2B4660;
+  --accent: #6BB2F0; --accent-ink: #0B1B2B; --accent-soft: #19395A; --good: #5FD39A;
+  --more-b: #F29150; --more-t: #43240F;
+  --less-b: #6BA6F0; --less-t: #14294A;
+  --eq-b: #B994EE;   --eq-t: #2E2049;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+body {
+  background: var(--bg); color: var(--fg);
+  font-family: var(--body); font-size: 17px; line-height: 1.45;
+  padding-block: 20px 40px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+.wrap { max-width: 980px; margin: 0 auto; display: flex; flex-direction: column; gap: 16px; }
+
+.eyebrow { font-weight: 800; font-size: 13px; letter-spacing: .12em; text-transform: uppercase; color: var(--accent); }
+h1 { font-family: var(--display); font-weight: 700; font-size: clamp(30px, 6vw, 46px); line-height: 1.05; margin: 4px 0 6px; text-wrap: balance; }
+.sub { margin: 0; color: var(--muted); max-width: 62ch; }
+
+.status { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 16px; background: var(--surface); border: 2px solid var(--line); border-radius: 16px; padding: 12px 16px; }
+.msg { flex: 1 1 280px; min-width: 0; font-weight: 800; font-size: 20px; }
+.msg.good { color: var(--good); }
+.dots { display: flex; gap: 6px; align-items: center; }
+.dot { width: 14px; height: 14px; border-radius: 50%; background: var(--line); }
+.dot.done { background: var(--good); }
+.dot.cur { background: var(--surface); box-shadow: 0 0 0 3px var(--accent); }
+.tools { display: flex; gap: 8px; flex-wrap: wrap; }
+.tool { font: inherit; font-weight: 800; font-size: 15px; color: var(--fg); background: transparent; border: 2px solid var(--line); border-radius: 99px; padding: 6px 14px; cursor: pointer; }
+.tool[aria-pressed="true"] { border-color: var(--accent); background: var(--accent-soft); }
+.tool:hover { border-color: var(--accent); }
+
+.play { display: flex; flex-direction: column; gap: 16px; }
+.goal { background: var(--surface); border: 2px solid var(--line); border-radius: 18px; padding: 14px 18px; display: flex; flex-wrap: wrap; align-items: center; gap: 12px 24px; }
+.goal-box { display: flex; align-items: center; gap: 16px; background: var(--bg); border: 3px solid var(--accent); border-radius: 16px; padding: 10px 16px; }
+.goal-num { font-family: var(--display); font-weight: 700; font-size: 54px; line-height: 1; color: var(--accent); }
+.goal-text { flex: 1 1 260px; min-width: 0; }
+.round { font-weight: 800; font-size: 13px; letter-spacing: .1em; text-transform: uppercase; color: var(--accent); margin-bottom: 4px; }
+.prompt { font-family: var(--display); font-weight: 500; font-size: clamp(20px, 3.6vw, 26px); line-height: 1.3; margin: 0; }
+.read { font: inherit; font-weight: 800; font-size: 15px; color: var(--accent-ink); background: var(--accent); border: 0; border-radius: 99px; padding: 8px 18px; cursor: pointer; }
+
+.grp { display: grid; gap: 2px; justify-items: center; align-items: center; }
+.grp span { line-height: 1.1; font-size: 26px; }
+.grp.small span { font-size: 15px; }
+.grp.goalg span { font-size: 28px; }
+
+.tray { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; min-height: 120px; background: var(--surface); border: 2px dashed var(--line); border-radius: 18px; padding: 14px; }
+.card { width: 168px; padding: 12px 10px; display: flex; align-items: center; justify-content: center; min-height: 92px; background: var(--bg); border: 2px solid var(--line); border-radius: 14px; cursor: grab; user-select: none; -webkit-user-select: none; touch-action: none; transition: transform .12s ease, box-shadow .12s ease, border-color .12s ease; }
+.card:hover { border-color: var(--accent); }
+.card.sel { border-color: var(--accent); box-shadow: 0 0 0 4px var(--accent-soft); transform: translateY(-4px); }
+.card.shake { animation: shake .4s; }
+.ghost { position: fixed; z-index: 1000; pointer-events: none; opacity: .92; transform: translate(-50%, -60%) rotate(-4deg) scale(1.06); box-shadow: 0 10px 24px rgba(0,0,0,.25); }
+.tray-empty { align-self: center; font-weight: 800; color: var(--muted); }
+
+.bins { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 12px; }
+.bin { min-width: 0; min-height: 200px; display: flex; flex-direction: column; gap: 10px; padding: 12px; border: 3px solid var(--bc); background: var(--bt); border-radius: 18px; cursor: pointer; transition: transform .12s ease, box-shadow .12s ease; }
+.bin[data-bin="more"] { --bc: var(--more-b); --bt: var(--more-t); }
+.bin[data-bin="less"] { --bc: var(--less-b); --bt: var(--less-t); }
+.bin[data-bin="equal"] { --bc: var(--eq-b); --bt: var(--eq-t); }
+.bins.armed .bin { border-style: dashed; }
+.bin.over { transform: scale(1.03); box-shadow: 0 0 0 5px var(--bc); }
+.bin-head { display: flex; align-items: center; gap: 10px; }
+.bin-icon { font-size: 40px; line-height: 1; }
+.bin-name { font-family: var(--display); font-weight: 700; font-size: 26px; line-height: 1.05; }
+.pile { display: flex; flex-wrap: wrap; gap: 6px; align-content: flex-start; }
+.chip { display: flex; align-items: center; gap: 6px; background: var(--surface); border-radius: 10px; padding: 4px 8px; animation: pop .35s ease; }
+.chip b { font-family: var(--display); font-size: 22px; line-height: 1; }
+
+.after { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 20px; background: var(--surface); border: 3px solid var(--good); border-radius: 18px; padding: 14px 18px; }
+.after p { margin: 0; flex: 1 1 260px; min-width: 0; font-weight: 800; font-size: 20px; }
+.big { font: inherit; font-weight: 800; font-size: 18px; color: var(--accent-ink); background: var(--accent); border: 0; border-radius: 99px; padding: 10px 26px; cursor: pointer; }
+
+.finish { background: var(--surface); border: 3px solid var(--good); border-radius: 18px; padding: 18px; display: flex; flex-direction: column; gap: 14px; }
+.finish h2 { font-family: var(--display); font-size: 28px; margin: 0; }
+.words { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; }
+.word { border-radius: 14px; padding: 12px 14px; display: flex; align-items: center; gap: 12px; border: 3px solid var(--wc); background: var(--wt); }
+.word.more { --wc: var(--more-b); --wt: var(--more-t); }
+.word.less { --wc: var(--less-b); --wt: var(--less-t); }
+.word.equal { --wc: var(--eq-b); --wt: var(--eq-t); }
+.word i { font-style: normal; font-size: 42px; line-height: 1; }
+.word b { font-family: var(--display); font-size: 24px; display: block; line-height: 1.1; }
+.word span { color: var(--muted); font-weight: 700; }
+
+.fall { position: fixed; top: -40px; z-index: 900; font-size: 30px; pointer-events: none; animation: fall linear forwards; }
+:focus-visible { outline: 3px solid var(--accent); outline-offset: 3px; }
+
+@keyframes shake { 0%,100% { transform: translateX(0); } 20% { transform: translateX(-8px); } 40% { transform: translateX(8px); } 60% { transform: translateX(-6px); } 80% { transform: translateX(6px); } }
+@keyframes pop { 0% { transform: scale(.4); } 70% { transform: scale(1.15); } 100% { transform: scale(1); } }
+@keyframes fall { to { transform: translateY(110vh) rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) {
+  .card.shake, .chip { animation: none; }
+  .card, .bin { transition: none; }
+  .fall { display: none; }
+}
+</style>
+
+<div class="wrap">
+  <header>
+    <div class="eyebrow">Kindergarten Math &middot; Weather</div>
+    <h1>Weather Compare Sort</h1>
+    <p class="sub">Count each group. Is it more than the goal group, less than it, or equal to it? Tap a group, then tap a bin. You can drag it too.</p>
+  </header>
+
+  <div class="status">
+    <div class="msg" id="msg" role="status" aria-live="polite">Tap a group to count it.</div>
+    <div class="dots" id="dots" aria-hidden="true"></div>
+    <div class="tools">
+      <button class="tool" id="sound" type="button" aria-pressed="true">Read aloud: on</button>
+      <button class="tool" id="restart" type="button">Start over</button>
+    </div>
+  </div>
+
+  <div class="play" id="play">
+    <section class="goal" aria-label="Goal group">
+      <div class="goal-box" id="goalBox" aria-hidden="true"></div>
+      <div class="goal-text">
+        <div class="round" id="round"></div>
+        <p class="prompt" id="prompt"></p>
+      </div>
+      <button class="read" id="read" type="button">Read it to me</button>
+    </section>
+
+    <div class="tray" id="tray" aria-label="Groups to sort"></div>
+    <div class="bins" id="bins"></div>
+
+    <div class="after" id="after" hidden>
+      <p id="afterText"></p>
+      <button class="big" id="next" type="button">Next</button>
+    </div>
+  </div>
+
+  <div class="finish" id="finish" hidden>
+    <h2>You compared like a weather expert!</h2>
+    <div class="words">
+      <div class="word more"><i aria-hidden="true">&#128588;</i><div><b>More than</b><span>A bigger group</span></div></div>
+      <div class="word less"><i aria-hidden="true">&#129295;</i><div><b>Less than</b><span>A smaller group</span></div></div>
+      <div class="word equal"><i aria-hidden="true">&#9878;&#65039;</i><div><b>Equal to</b><span>The same amount</span></div></div>
+    </div>
+    <div><button class="big" id="again" type="button">Play again</button></div>
+  </div>
+</div>
+
+<script>
+(function () {
+  var WORDS = ["zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten"];
+  var BIN = {
+    more:  { id: "more",  name: "More than", icon: "🙌", label: "More than bin" },
+    less:  { id: "less",  name: "Less than", icon: "🤏", label: "Less than bin" },
+    equal: { id: "equal", name: "Equal to",  icon: "⚖️", label: "Equal to bin" }
+  };
+  var PHRASE = { more: "more than", less: "less than", equal: "equal to" };
+  var ROUND_DEFS = [
+    { ref: 5, e: "💧", name: "raindrops",  less: [2, 4], more: [7, 9] },
+    { ref: 4, e: "❄️", name: "snowflakes", less: [1, 3], more: [6, 8] },
+    { ref: 6, e: "☀️", name: "suns",       less: [3, 5], more: [8, 10] },
+    { ref: 7, e: "☁️", name: "clouds",     less: [4, 6], more: [9, 10] }
+  ];
+
+  function joinNums(a) { return a.length > 1 ? a.slice(0, -1).join(", ") + " and " + a[a.length - 1] : String(a[0]); }
+
+  var ROUNDS = ROUND_DEFS.map(function (d) {
+    var items = [];
+    d.less.forEach(function (n) { items.push({ id: "n" + n, n: n, bin: "less" }); });
+    d.more.forEach(function (n) { items.push({ id: "n" + n, n: n, bin: "more" }); });
+    items.push({ id: "n" + d.ref, n: d.ref, bin: "equal" });
+    return { ref: d.ref, e: d.e, name: d.name, items: items,
+      after: joinNums(d.more) + " are more than " + d.ref + ". " + joinNums(d.less) + " are less than " + d.ref + ". " + d.ref + " is equal to " + d.ref + "." };
+  });
+
+  var play = document.getElementById("play");
+  var tray = document.getElementById("tray");
+  var binsEl = document.getElementById("bins");
+  var msg = document.getElementById("msg");
+  var dotsEl = document.getElementById("dots");
+  var goalBox = document.getElementById("goalBox");
+  var roundEl = document.getElementById("round");
+  var promptEl = document.getElementById("prompt");
+  var afterEl = document.getElementById("after");
+  var afterText = document.getElementById("afterText");
+  var nextBtn = document.getElementById("next");
+  var finish = document.getElementById("finish");
+  var soundBtn = document.getElementById("sound");
+  var soundOn = true;
+  var idx = 0, round = null, placed = {}, wrongs = {}, selected = null, drag = null;
+
+  function shuffle(a) { a = a.slice(); for (var i = a.length - 1; i > 0; i--) { var j = Math.floor(Math.random() * (i + 1)); var t = a[i]; a[i] = a[j]; a[j] = t; } return a; }
+  function item(id) { for (var i = 0; i < round.items.length; i++) if (round.items[i].id === id) return round.items[i]; }
+  function say(text) {
+    try {
+      if (!soundOn || !("speechSynthesis" in window)) return;
+      window.speechSynthesis.cancel();
+      var u = new SpeechSynthesisUtterance(text);
+      u.rate = 0.85;
+      window.speechSynthesis.speak(u);
+    } catch (e) {}
+  }
+  function setMsg(t, good) { msg.textContent = t; msg.className = "msg" + (good ? " good" : ""); }
+  function countSay(n) { return WORDS.slice(1, n + 1).join(", ") + ". " + WORDS[n] + " " + round.name + "."; }
+  function promptText() { return "Is each group more than " + round.ref + ", less than " + round.ref + ", or equal to " + round.ref + "?"; }
+  function promptSay() { return "Is each group more than " + WORDS[round.ref] + ", less than " + WORDS[round.ref] + ", or equal to " + WORDS[round.ref] + "? Count the " + round.name + "."; }
+
+  function makeGroup(n, emoji, cls) {
+    var g = document.createElement("div");
+    g.className = "grp" + (cls ? " " + cls : "");
+    g.style.gridTemplateColumns = "repeat(" + Math.min(n, 5) + ", auto)";
+    for (var i = 0; i < n; i++) { var s = document.createElement("span"); s.textContent = emoji; g.appendChild(s); }
+    return g;
+  }
+
+  function buildDots() {
+    dotsEl.innerHTML = "";
+    for (var i = 0; i < ROUNDS.length; i++) {
+      var d = document.createElement("span");
+      d.className = "dot" + (i < idx ? " done" : i === idx ? " cur" : "");
+      dotsEl.appendChild(d);
+    }
+  }
+
+  function buildBins() {
+    binsEl.innerHTML = "";
+    binsEl.classList.remove("armed");
+    ["more", "less", "equal"].forEach(function (k) {
+      var b = BIN[k];
+      var d = document.createElement("div");
+      d.className = "bin";
+      d.dataset.bin = k;
+      d.setAttribute("role", "button");
+      d.tabIndex = 0;
+      d.setAttribute("aria-label", b.label + ", compared to " + round.ref);
+      d.innerHTML = '<div class="bin-head"><span class="bin-icon" aria-hidden="true">' + b.icon + '</span><span class="bin-name">' + b.name + ' ' + round.ref + '</span></div><div class="pile" id="pile-' + k + '"></div>';
+      binsEl.appendChild(d);
+    });
+  }
+
+  function buildTray() {
+    tray.innerHTML = "";
+    shuffle(round.items).forEach(function (it) {
+      var c = document.createElement("div");
+      c.className = "card";
+      c.dataset.id = it.id;
+      c.setAttribute("role", "button");
+      c.tabIndex = 0;
+      c.setAttribute("aria-label", it.n + " " + round.name);
+      c.appendChild(makeGroup(it.n, round.e));
+      tray.appendChild(c);
+    });
+  }
+
+  function cardEl(id) { return tray.querySelector('.card[data-id="' + id + '"]'); }
+
+  function loadRound(i, speak) {
+    idx = i; round = ROUNDS[i]; placed = {}; wrongs = {}; selected = null;
+    afterEl.hidden = true;
+    roundEl.textContent = "Round " + (i + 1) + " of " + ROUNDS.length;
+    promptEl.textContent = promptText();
+    goalBox.innerHTML = "";
+    goalBox.appendChild(makeGroup(round.ref, round.e, "goalg"));
+    var num = document.createElement("div");
+    num.className = "goal-num";
+    num.textContent = round.ref;
+    goalBox.appendChild(num);
+    buildDots(); buildBins(); buildTray();
+    setMsg("Tap a group to count it.");
+    if (speak) say(promptSay());
+  }
+
+  function select(id) {
+    if (selected) { var o = cardEl(selected); if (o) o.classList.remove("sel"); }
+    selected = id;
+    var c = cardEl(id);
+    if (c) c.classList.add("sel");
+    binsEl.classList.add("armed");
+    setMsg("Count them. Is it more than, less than, or equal to " + round.ref + "?");
+    say(countSay(item(id).n));
+  }
+  function clearSel() {
+    if (selected) { var c = cardEl(selected); if (c) c.classList.remove("sel"); }
+    selected = null;
+    binsEl.classList.remove("armed");
+  }
+
+  function attempt(id, binId) {
+    var it = item(id), c = cardEl(id);
+    if (!it || !c || placed[id]) return;
+    if (it.bin === binId) {
+      placed[id] = true;
+      clearSel();
+      c.remove();
+      var chip = document.createElement("div");
+      chip.className = "chip";
+      chip.appendChild(makeGroup(it.n, round.e, "small"));
+      var nb = document.createElement("b");
+      nb.textContent = it.n;
+      chip.appendChild(nb);
+      document.getElementById("pile-" + binId).appendChild(chip);
+      var t = "Yes! " + it.n + " is " + PHRASE[binId] + " " + round.ref + ".";
+      setMsg(t, true); say(t);
+      if (Object.keys(placed).length === round.items.length) {
+        tray.innerHTML = '<div class="tray-empty">All sorted!</div>';
+        afterText.textContent = round.after;
+        nextBtn.textContent = idx === ROUNDS.length - 1 ? "Finish" : "Next";
+        afterEl.hidden = false;
+        say(round.after);
+      }
+    } else {
+      c.classList.remove("shake"); void c.offsetWidth; c.classList.add("shake");
+      wrongs[id] = (wrongs[id] || 0) + 1;
+      var t2;
+      if (wrongs[id] === 1) t2 = "Not quite. Count this group. Count the goal group. Are they the same, or is one bigger? Try again!";
+      else t2 = "Look closely. " + it.n + " is " + PHRASE[it.bin] + " " + round.ref + ". Try another bin!";
+      setMsg(t2); say(t2);
+    }
+  }
+
+  function confetti() {
+    var faces = ["💧", "❄️", "☀️", "☁️", "🌈"];
+    for (var i = 0; i < 24; i++) {
+      var s = document.createElement("span");
+      s.className = "fall";
+      s.textContent = faces[i % faces.length];
+      s.style.left = (Math.random() * 96) + "vw";
+      s.style.animationDuration = (2.4 + Math.random() * 2.2) + "s";
+      s.style.animationDelay = (Math.random() * 0.8) + "s";
+      document.body.appendChild(s);
+      (function (el) { setTimeout(function () { el.remove(); }, 6000); })(s);
+    }
+  }
+
+  function finishAll() {
+    play.hidden = true;
+    finish.hidden = false;
+    dotsEl.innerHTML = "";
+    for (var i = 0; i < ROUNDS.length; i++) { var d = document.createElement("span"); d.className = "dot done"; dotsEl.appendChild(d); }
+    setMsg("All done! Great counting.", true);
+    say("You did it! Great counting.");
+    confetti();
+  }
+
+  function restart() {
+    finish.hidden = true;
+    play.hidden = false;
+    loadRound(0, false);
+  }
+
+  tray.addEventListener("pointerdown", function (e) {
+    var card = e.target.closest(".card");
+    if (!card || e.button > 0) return;
+    drag = { id: card.dataset.id, card: card, x: e.clientX, y: e.clientY, moved: false, ghost: null };
+  });
+  window.addEventListener("pointermove", function (e) {
+    if (!drag) return;
+    if (!drag.moved && Math.hypot(e.clientX - drag.x, e.clientY - drag.y) > 8) {
+      drag.moved = true;
+      select(drag.id);
+      drag.ghost = drag.card.cloneNode(true);
+      drag.ghost.classList.add("ghost");
+      drag.ghost.classList.remove("sel");
+      document.body.appendChild(drag.ghost);
+      drag.card.style.opacity = ".35";
+    }
+    if (drag.moved) {
+      drag.ghost.style.left = e.clientX + "px";
+      drag.ghost.style.top = e.clientY + "px";
+      var over = document.elementFromPoint(e.clientX, e.clientY);
+      var bin = over && over.closest ? over.closest(".bin") : null;
+      Array.prototype.forEach.call(binsEl.children, function (b) { b.classList.toggle("over", b === bin); });
+    }
+  });
+  function endDrag(e, cancelled) {
+    if (!drag) return;
+    var d = drag; drag = null;
+    d.card.style.opacity = "";
+    if (d.ghost) d.ghost.remove();
+    Array.prototype.forEach.call(binsEl.children, function (b) { b.classList.remove("over"); });
+    if (cancelled) return;
+    if (d.moved) {
+      var over = document.elementFromPoint(e.clientX, e.clientY);
+      var bin = over && over.closest ? over.closest(".bin") : null;
+      if (bin) attempt(d.id, bin.dataset.bin);
+    } else {
+      select(d.id);
+    }
+  }
+  window.addEventListener("pointerup", function (e) { endDrag(e, false); });
+  window.addEventListener("pointercancel", function (e) { endDrag(e, true); });
+
+  tray.addEventListener("keydown", function (e) {
+    var card = e.target.closest(".card");
+    if (card && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); select(card.dataset.id); }
+  });
+  binsEl.addEventListener("click", function (e) {
+    var bin = e.target.closest(".bin");
+    if (!bin) return;
+    if (selected) attempt(selected, bin.dataset.bin);
+    else setMsg("First tap a group, then tap a bin.");
+  });
+  binsEl.addEventListener("keydown", function (e) {
+    var bin = e.target.closest(".bin");
+    if (bin && (e.key === "Enter" || e.key === " ")) {
+      e.preventDefault();
+      if (selected) attempt(selected, bin.dataset.bin);
+      else setMsg("First choose a group, then choose a bin.");
+    }
+  });
+
+  nextBtn.addEventListener("click", function () {
+    if (idx < ROUNDS.length - 1) loadRound(idx + 1, true);
+    else finishAll();
+  });
+  document.getElementById("read").addEventListener("click", function () {
+    var was = soundOn; soundOn = true; say(promptSay()); soundOn = was;
+  });
+  soundBtn.addEventListener("click", function () {
+    soundOn = !soundOn;
+    soundBtn.setAttribute("aria-pressed", String(soundOn));
+    soundBtn.textContent = "Read aloud: " + (soundOn ? "on" : "off");
+    if (!soundOn) { try { window.speechSynthesis.cancel(); } catch (err) {} }
+  });
+  document.getElementById("restart").addEventListener("click", restart);
+  document.getElementById("again").addEventListener("click", restart);
+
+  loadRound(0, false);
+})();
+</script>
+
+</body></html>
